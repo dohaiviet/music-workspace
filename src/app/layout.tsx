@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dinos Music Workspace",
-  description: "Music workspace for Dinos musicians",
+  title: "Music Workspace",
+  description: "Music workspace for musicians",
 };
 
 export default function RootLayout({
