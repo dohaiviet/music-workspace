@@ -30,6 +30,12 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Search state
+  const [searchMode, setSearchMode] = useState<'link' | 'search'>('link');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   useEffect(() => {
     // Fetch current user
     fetchUser();
@@ -97,6 +103,53 @@ export default function HomePage() {
     } catch (error: any) {
       console.error('Error adding song:', error);
       alert(error.message || 'Thêm bài hát thất bại. Vui lòng kiểm tra link và thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/youtube/search?q=${encodeURIComponent(searchQuery)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Search failed');
+      }
+
+      setSearchResults(data.videos);
+    } catch (error: any) {
+      console.error('Error searching:', error);
+      alert(error.message || 'Tìm kiếm thất bại');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddSearchResult = async (videoId: string) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/songs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ youtubeUrl: `https://www.youtube.com/watch?v=${videoId}` }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add song');
+      }
+
+      fetchSongs();
+      alert('Đã thêm bài hát vào danh sách!');
+    } catch (error) {
+      console.error('Error adding song:', error);
+      alert('Thêm bài hát thất bại');
     } finally {
       setIsSubmitting(false);
     }
@@ -179,25 +232,98 @@ export default function HomePage() {
 
         {/* Add Song Form */}
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6 mb-8">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">
-            Thêm Bài Hát
-          </h2>
-          <form onSubmit={handleAddSong} className="flex gap-3">
-            <input
-              type="text"
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              placeholder="Dán link YouTube vào đây..."
-              className="flex-1 px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-            />
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isSubmitting ? 'Đang thêm...' : 'Thêm'}
-            </button>
-          </form>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+              Thêm Bài Hát
+            </h2>
+            <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
+              <button
+                onClick={() => setSearchMode('link')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'link'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                  }`}
+              >
+                Link YouTube
+              </button>
+              <button
+                onClick={() => setSearchMode('search')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'search'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                  }`}
+              >
+                Tìm Kiếm
+              </button>
+            </div>
+          </div>
+
+          {searchMode === 'link' ? (
+            <form onSubmit={handleAddSong} className="flex gap-3">
+              <input
+                type="text"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="Dán link YouTube vào đây..."
+                className="flex-1 px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {isSubmitting ? 'Đang thêm...' : 'Thêm'}
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <form onSubmit={handleSearch} className="flex gap-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Nhập tên bài hát..."
+                  className="flex-1 px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={isSearching}
+                  className="px-6 py-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all disabled:opacity-50"
+                >
+                  {isSearching ? '...' : 'Tìm'}
+                </button>
+              </form>
+
+              {searchResults.length > 0 && (
+                <div className="space-y-2 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                  {searchResults.map((video) => (
+                    <div key={video.videoId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+                      <img
+                        src={video.thumbnail}
+                        alt={video.title}
+                        className="w-24 h-16 object-cover rounded-lg"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-zinc-900 dark:text-white truncate" title={video.title}>
+                          {video.title}
+                        </h4>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                          {video.channelTitle}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleAddSearchResult(video.videoId)}
+                        disabled={isSubmitting}
+                        className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                      >
+                        Thêm
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Queue */}

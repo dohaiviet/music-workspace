@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
     const router = useRouter();
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,17 +25,17 @@ export default function AdminLoginPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ username, password }),
             });
 
             if (!response.ok) {
-                throw new Error('Invalid password');
+                throw new Error('Invalid credentials');
             }
 
             router.push('/admin');
         } catch (error) {
             console.error('Error logging in:', error);
-            alert('Mật khẩu không đúng. Vui lòng thử lại.');
+            alert('Thông tin đăng nhập không đúng. Vui lòng thử lại.');
             setIsSubmitting(false);
         }
     };
@@ -51,11 +52,26 @@ export default function AdminLoginPage() {
                             Đăng Nhập Quản Trị
                         </h1>
                         <p className="text-zinc-600 dark:text-zinc-400">
-                            Nhập mật khẩu để tiếp tục
+                            Nhập thông tin để tiếp tục
                         </p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label htmlFor="username" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                                Tên đăng nhập (Tùy chọn)
+                            </label>
+                            <input
+                                type="text"
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="admin"
+                                className="w-full px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                autoFocus
+                            />
+                        </div>
+
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                                 Mật Khẩu
@@ -67,7 +83,6 @@ export default function AdminLoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Nhập mật khẩu quản trị"
                                 className="w-full px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                                autoFocus
                             />
                         </div>
 

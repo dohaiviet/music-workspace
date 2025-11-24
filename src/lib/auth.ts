@@ -3,6 +3,8 @@ import { nanoid } from 'nanoid';
 import dbConnect from './mongodb';
 import User from '@/models/User';
 
+import bcrypt from 'bcryptjs';
+
 export async function getCurrentUser() {
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('sessionId')?.value;
@@ -37,27 +39,67 @@ export async function getAdminUser() {
     const cookieStore = await cookies();
     const adminSessionId = cookieStore.get('adminSessionId')?.value;
 
-    // Check if admin session exists (from password login)
-    if (adminSessionId) {
-        return { isAdmin: true }; // Return a simple admin indicator
+    if (!adminSessionId) {
+        return null;
+    }
+
+    // Check if it's a DB admin session
+    await dbConnect();
+    const adminUser = await User.findOne({ adminSessionId, isAdmin: true });
+
+    if (adminUser) {
+        return { isAdmin: true, ...adminUser.toObject() };
+    }
+
+    // Fallback: Check if it's a legacy env session (if we want to keep supporting it temporarily)
+    // For now, let's assume if it's not in DB, it might be the legacy session ID if we didn't clear it.
+    // But to be safe and strict, we should probably rely on DB if possible.
+    // However, the previous implementation just stored a random ID in cookie and didn't check against anything server-side other than existence?
+    // Wait, the previous implementation was:
+    // cookieStore.set('adminSessionId', sessionId, ...)
+    // And getAdminUser just checked: if (adminSessionId) return { isAdmin: true }
+    // This was very insecure if the session ID wasn't validated against anything! 
+    // Anyone could set a cookie named adminSessionId? No, because it's httpOnly and signed? No, Next.js cookies are secure but if I just check for existence...
+    // Actually, the previous implementation generated a random ID and set it. It didn't store it anywhere server-side.
+    // So yes, it was stateless and relied on the fact that only the server could set it.
+    // But we want stateful now.
+
+    return null;
+}
+
+export async function verifyAdminCredentials(username?: string, password?: string) {
+    // 1. Check DB for username/password
+    if (username && password) {
+        await dbConnect();
+        const user = await User.findOne({ username }).select('+password');
+
+        if (user && user.isAdmin && user.password) {
+            const isValid = await bcrypt.compare(password, user.password);
+            if (isValid) {
+                return { type: 'db', user };
+            }
+        }
+    }
+
+    // 2. Fallback: Check ENV password (legacy/root admin)
+    // Only if username is NOT provided (legacy flow) OR if it matches a specific "root" username?
+    // Let's say if username is empty, we check ENV password.
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!username && password && adminPassword && password === adminPassword) {
+        return { type: 'env' };
     }
 
     return null;
 }
 
-export async function verifyAdminPassword(password: string) {
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminPassword) {
-        throw new Error('ADMIN_PASSWORD not set in environment variables');
-    }
-
-    return password === adminPassword;
-}
-
-export async function createAdminSession() {
+export async function createAdminSession(userId?: string) {
     const sessionId = nanoid();
     const cookieStore = await cookies();
+
+    if (userId) {
+        await dbConnect();
+        await User.findByIdAndUpdate(userId, { adminSessionId: sessionId });
+    }
 
     cookieStore.set('adminSessionId', sessionId, {
         httpOnly: true,

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminPassword } from '@/lib/auth';
-import { nanoid } from 'nanoid';
+import { createAdminSession, createUserSession, verifyAdminCredentials } from '@/lib/auth';
 
 // POST /api/auth/login - Admin login
 export async function POST(request: NextRequest) {
     try {
-        const { password } = await request.json();
+        const { username, password } = await request.json();
 
         if (!password) {
             return NextResponse.json(
@@ -14,24 +13,35 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const isValid = await verifyAdminPassword(password);
+        const result = await verifyAdminCredentials(username, password);
 
-        if (!isValid) {
+        if (!result) {
             return NextResponse.json(
-                { error: 'Invalid password' },
+                { error: 'Invalid credentials' },
                 { status: 401 }
             );
         }
 
-        const sessionId = nanoid();
+        // Create admin session
+        await createAdminSession(result.user?._id);
+
+        // Create regular user session (for search, adding songs, etc.)
+        // Assuming result.user?._id is the user ID needed for createUserSession
+        if (result.user?._id) {
+            await createUserSession(result.user._id);
+        }
 
         const response = NextResponse.json({ success: true });
-        response.cookies.set('adminSessionId', sessionId, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24, // 1 day
-        });
+
+        // The original logic for setting 'sessionId' cookie is now handled by createUserSession
+        // if (result.user && result.user.sessionId) {
+        //     response.cookies.set('sessionId', result.user.sessionId, {
+        //         httpOnly: true,
+        //         secure: process.env.NODE_ENV === 'production',
+        //         sameSite: 'lax',
+        //         maxAge: 60 * 60 * 24 * 30, // 30 days
+        //     });
+        // }
 
         return response;
     } catch (error) {
