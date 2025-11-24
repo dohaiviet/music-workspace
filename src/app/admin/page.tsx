@@ -40,7 +40,7 @@ export default function AdminPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Search state
-    const [searchMode, setSearchMode] = useState<'link' | 'search'>('link');
+    const [searchMode, setSearchMode] = useState<'link' | 'search'>('search');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -413,6 +413,15 @@ export default function AdminPage() {
                                 </h2>
                                 <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
                                     <button
+                                        onClick={() => setSearchMode('search')}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'search'
+                                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                                        }`}
+                                    >
+                                        Tìm Kiếm
+                                    </button>
+                                    <button
                                         onClick={() => setSearchMode('link')}
                                         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'link'
                                             ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
@@ -420,15 +429,6 @@ export default function AdminPage() {
                                             }`}
                                     >
                                         Link YouTube
-                                    </button>
-                                    <button
-                                        onClick={() => setSearchMode('search')}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'search'
-                                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-                                            }`}
-                                    >
-                                        Tìm Kiếm
                                     </button>
                                 </div>
                             </div>
@@ -463,7 +463,7 @@ export default function AdminPage() {
                                         <button
                                             type="submit"
                                             disabled={isSearching}
-                                            className="px-6 py-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all disabled:opacity-50"
+                                            className="px-8 py-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all disabled:opacity-50"
                                         >
                                             {isSearching ? '...' : 'Tìm'}
                                         </button>
