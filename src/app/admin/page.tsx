@@ -174,10 +174,6 @@ export default function AdminPage() {
     }, []);
 
     const fetchUser = async () => {
-        // Mock auth for debugging UI
-        setUser({ _id: 'admin', name: 'Admin', avatar: '', isAdmin: true });
-        setIsLoading(false);
-        /*
         try {
             // Check if admin session exists
             const response = await fetch('/api/auth/admin-check');
@@ -193,7 +189,6 @@ export default function AdminPage() {
         } finally {
             setIsLoading(false);
         }
-        */
     };
 
     const fetchUsers = async () => {
