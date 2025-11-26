@@ -10,11 +10,15 @@ export async function GET(request: NextRequest) {
     try {
         await dbConnect();
 
-        const songs = await Song.find({}).sort({ createdAt: 1 });
+        // Sort by order (asc) then createdAt (asc) for consistent queue
+        const songs = await Song.find({}).sort({ order: 1, createdAt: 1 });
         const playback = await Playback.findOne({});
 
+        // Treat missing status as 'queued' for backward compatibility
+        const queue = songs.filter(s => s.status === 'queued' || !s.status);
+
         return NextResponse.json({
-            songs,
+            songs: queue,
             currentSongId: playback?.currentSongId || null,
         });
     } catch (error) {
@@ -38,7 +42,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { youtubeUrl } = await request.json();
+        const body = await request.json();
+        const { youtubeUrl } = body;
 
         if (!youtubeUrl) {
             return NextResponse.json(
@@ -67,6 +72,10 @@ export async function POST(request: NextRequest) {
 
         await dbConnect();
 
+        // Get max order to append to end
+        const lastSong = await Song.findOne({ status: 'queued' }).sort({ order: -1 });
+        const newOrder = lastSong && lastSong.order !== undefined ? lastSong.order + 1 : 0;
+
         const song = await Song.create({
             youtubeUrl,
             videoId,
@@ -75,6 +84,7 @@ export async function POST(request: NextRequest) {
             addedBy: user._id,
             addedByName: user.name,
             addedByAvatar: user.avatar,
+            order: newOrder,
         });
 
         // If no song is currently playing, set this as the current song

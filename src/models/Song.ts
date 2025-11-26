@@ -8,6 +8,9 @@ export interface ISong extends mongoose.Document {
     addedBy: mongoose.Types.ObjectId;
     addedByName: string;
     addedByAvatar: string;
+    order: number;
+    status: 'queued' | 'played';
+    playedAt?: Date;
     createdAt: Date;
 }
 
@@ -41,10 +44,27 @@ const SongSchema = new mongoose.Schema<ISong>({
         type: String,
         required: true,
     },
+    order: {
+        type: Number,
+        default: 0,
+    },
+    status: {
+        type: String,
+        enum: ['queued', 'played'],
+        default: 'queued',
+    },
+    playedAt: {
+        type: Date,
+    },
     createdAt: {
         type: Date,
         default: Date.now,
     },
 });
+
+// Force model recreation in dev mode to pick up schema changes
+if (process.env.NODE_ENV === 'development') {
+    delete mongoose.models.Song;
+}
 
 export default mongoose.models.Song || mongoose.model<ISong>('Song', SongSchema);

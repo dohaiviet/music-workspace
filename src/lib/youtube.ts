@@ -20,11 +20,50 @@ export function getThumbnailUrl(videoId: string): string {
 }
 
 export async function getVideoMetadata(videoId: string): Promise<{ title: string; thumbnail: string } | null> {
+    const fs = require('fs');
+    const log = (msg: string) => fs.appendFileSync('/tmp/debug_youtube.log', msg + '\n');
+
     try {
-        // For now, we'll use the YouTube oEmbed API which doesn't require an API key
+        const apiKey = process.env.YOUTUBE_API_KEY;
+        log(`getVideoMetadata called for ${videoId}. API Key exists: ${!!apiKey}`);
+
+        if (apiKey) {
+            const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`;
+            log(`Fetching: ${url}`);
+            const response = await fetch(url);
+            log(`Response status: ${response.status}`);
+
+            if (response.ok) {
+                const data = await response.json();
+                log(`Data: ${JSON.stringify(data)}`);
+                if (data.items && data.items.length > 0) {
+                    const item = data.items[0];
+                    return {
+                        title: item.snippet.title,
+                        thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url || getThumbnailUrl(videoId),
+                    };
+                } else {
+                    log('No items found in API response');
+                }
+            } else {
+                const errorText = await response.text();
+                log(`API Error: ${errorText}`);
+            }
+        }
+
+        // Fallback to oEmbed
+        log('Falling back to oEmbed');
         const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        log(`oEmbed status: ${response.status}`);
 
         if (!response.ok) {
+            log('oEmbed failed');
+            // Final fallback: return basic info if we have the ID
+            // We can't get the title easily without API, but we can return a placeholder
+            // or just fail. For now, let's try to return something usable if possible,
+            // but the requirement implies we need a title.
+            // If oEmbed fails (404), maybe the video doesn't exist or is private.
+            console.warn(`Failed to fetch metadata for ${videoId} via API and oEmbed`);
             return null;
         }
 
@@ -35,6 +74,7 @@ export async function getVideoMetadata(videoId: string): Promise<{ title: string
             thumbnail: getThumbnailUrl(videoId),
         };
     } catch (error) {
+        log(`Error: ${error}`);
         console.error('Error fetching video metadata:', error);
         return null;
     }

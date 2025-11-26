@@ -1,0 +1,36 @@
+2025-11-26T01:01:53.820Z: POST /api/songs called
+2025-11-26T01:01:53.822Z: URL: https://www.youtube.com/watch?v=9_E0294C5v0
+2025-11-26T01:01:53.823Z: Video ID: 9_E0294C5v0
+2025-11-26T01:01:54.691Z: Metadata: null
+2025-11-26T01:02:12.021Z: POST /api/songs called
+2025-11-26T01:02:12.024Z: URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+2025-11-26T01:02:12.024Z: Video ID: dQw4w9WgXcQ
+2025-11-26T01:02:12.154Z: Metadata: {"title":"Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)","thumbnail":"https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg"}
+Error: ValidationError: addedBy: Cast to ObjectId failed for value "debug_user_id" (type string) at path "addedBy" because of "BSONError"
+2025-11-26T01:02:41.870Z: POST /api/songs called
+Error: TypeError: Cannot read properties of undefined (reading 'ObjectId')
+2025-11-26T01:02:42.129Z: POST /api/songs called
+Error: TypeError: Cannot read properties of undefined (reading 'ObjectId')
+2025-11-26T01:02:42.350Z: POST /api/songs called
+Error: TypeError: Cannot read properties of undefined (reading 'ObjectId')
+2025-11-26T01:02:42.493Z: POST /api/songs called
+Error: TypeError: Cannot read properties of undefined (reading 'ObjectId')
+2025-11-26T01:02:45.820Z: POST /api/songs called
+Error: TypeError: Cannot read properties of undefined (reading 'ObjectId')
+2025-11-26T01:02:49.646Z: POST /api/songs called
+Error: TypeError: Cannot read properties of undefined (reading 'ObjectId')
+2025-11-26T01:03:13.791Z: POST /api/songs called
+2025-11-26T01:03:13.792Z: URL: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+2025-11-26T01:03:13.793Z: Video ID: dQw4w9WgXcQ
+2025-11-26T01:03:14.206Z: Metadata: {"title":"Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)","thumbnail":"https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg"}
+2025-11-26T01:03:14.343Z: Song created
+2025-11-26T01:03:14.431Z: POST /api/songs called
+2025-11-26T01:03:14.431Z: URL: https://www.youtube.com/watch?v=jNQXAC9IVRw
+2025-11-26T01:03:14.432Z: Video ID: jNQXAC9IVRw
+2025-11-26T01:03:14.620Z: Metadata: {"title":"Me at the zoo","thumbnail":"https://i.ytimg.com/vi/jNQXAC9IVRw/mqdefault.jpg"}
+2025-11-26T01:03:14.746Z: Song created
+2025-11-26T01:03:14.825Z: POST /api/songs called
+2025-11-26T01:03:14.825Z: URL: https://www.youtube.com/watch?v=L_jWHffIx5E
+2025-11-26T01:03:14.825Z: Video ID: L_jWHffIx5E
+2025-11-26T01:03:14.895Z: Metadata: {"title":"Smash Mouth - All Star","thumbnail":"https://i.ytimg.com/vi/L_jWHffIx5E/mqdefault.jpg"}
+2025-11-26T01:03:15.016Z: Song created

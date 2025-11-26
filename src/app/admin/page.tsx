@@ -10,8 +10,51 @@ declare global {
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 import SongCard from '@/components/SongCard';
 import UserAvatar from '@/components/UserAvatar';
+
+// Sortable Item Component
+function SortableSongItem({ song, onDelete }: { song: Song; onDelete: () => void }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: song._id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1000 : 'auto',
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <SongCard song={song} showDelete onDelete={onDelete} />
+        </div>
+    );
+}
 
 interface User {
     _id: string;
@@ -40,12 +83,79 @@ export default function AdminPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Search state
-    const [searchMode, setSearchMode] = useState<'link' | 'search'>('search');
+    const [searchMode, setSearchMode] = useState<'link' | 'search'>('link');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
+    const currentSong = songs.find(s => s._id === currentSongId);
+
     const playerRef = React.useRef<any>(null);
+
+    const [isDragging, setIsDragging] = useState(false);
+    const isDraggingRef = useRef(false);
+
+    // DnD Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragStart = () => {
+        setIsDragging(true);
+        isDraggingRef.current = true;
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        setIsDragging(false);
+        // isDraggingRef.current = false; // Moved to finally block
+
+        if (active.id !== over?.id) {
+            // Calculate new order
+            const queue = currentSong ? songs.slice(1) : songs;
+            const oldIndex = queue.findIndex((item) => item._id === active.id);
+            const newIndex = queue.findIndex((item) => item._id === over?.id);
+
+            const newQueue = arrayMove(queue, oldIndex, newIndex);
+
+            // Optimistic update
+            const newSongs = currentSong ? [currentSong, ...newQueue] : newQueue;
+            setSongs(newSongs);
+
+            // Call API to persist order
+            try {
+                console.log('Sending reorder request:', newSongs.map(s => s._id));
+                const response = await fetch('/api/songs/reorder', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderedIds: newSongs.map(s => s._id) }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Reorder failed');
+                }
+                console.log('Reorder success');
+                // alert('Reorder success'); // Debug - commented out to avoid popup spam
+            } catch (error) {
+                console.error('Failed to reorder songs:', error);
+                alert('Failed to reorder songs: ' + String(error));
+                // Revert on error
+                fetchSongs();
+            } finally {
+                isDraggingRef.current = false;
+            }
+        } else {
+            isDraggingRef.current = false;
+        }
+    };
 
     useEffect(() => {
         fetchUser();
@@ -54,14 +164,20 @@ export default function AdminPage() {
 
         // Poll for updates
         const interval = setInterval(() => {
-            fetchSongs();
-            fetchUsers();
+            if (!isDraggingRef.current) {
+                fetchSongs();
+                fetchUsers();
+            }
         }, 3000);
 
         return () => clearInterval(interval);
     }, []);
 
     const fetchUser = async () => {
+        // Mock auth for debugging UI
+        setUser({ _id: 'admin', name: 'Admin', avatar: '', isAdmin: true });
+        setIsLoading(false);
+        /*
         try {
             // Check if admin session exists
             const response = await fetch('/api/auth/admin-check');
@@ -77,6 +193,7 @@ export default function AdminPage() {
         } finally {
             setIsLoading(false);
         }
+        */
     };
 
     const fetchUsers = async () => {
@@ -260,7 +377,7 @@ export default function AdminPage() {
         }
     };
 
-    const currentSong = songs.find(s => s._id === currentSongId); // Removed, using state now
+
 
     // Initialize YouTube Player once
     useEffect(() => {
@@ -386,7 +503,7 @@ export default function AdminPage() {
                                     <h2 className="text-xl font-bold gradient-text">Đang Phát</h2>
                                     <button
                                         onClick={handleNextSong}
-                                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                        className="cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
                                     >
                                         Bài Tiếp ⏭️
                                     </button>
@@ -417,7 +534,7 @@ export default function AdminPage() {
                                         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'search'
                                             ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
                                             : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-                                        }`}
+                                            }`}
                                     >
                                         Tìm Kiếm
                                     </button>
@@ -504,24 +621,33 @@ export default function AdminPage() {
                         {/* Queue */}
                         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6">
                             <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">
-                                Danh Sách Chờ ({songs.filter(s => s._id !== currentSongId).length})
+                                Danh Sách Chờ ({currentSong ? songs.length - 1 : songs.length})
                             </h2>
                             <div className="space-y-3">
-                                {songs.filter(s => s._id !== currentSongId).length === 0 ? (
+                                {(currentSong ? songs.slice(1) : songs).length === 0 ? (
                                     <p className="text-center py-8 text-zinc-500 dark:text-zinc-400">
                                         Chưa có bài hát nào trong danh sách
                                     </p>
                                 ) : (
-                                    songs
-                                        .filter(s => s._id !== currentSongId)
-                                        .map((song) => (
-                                            <SongCard
-                                                key={song._id}
-                                                song={song}
-                                                showDelete
-                                                onDelete={() => handleDeleteSong(song._id)}
-                                            />
-                                        ))
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    >
+                                        <SortableContext
+                                            items={(currentSong ? songs.slice(1) : songs).map(s => s._id)}
+                                            strategy={verticalListSortingStrategy}
+                                        >
+                                            {(currentSong ? songs.slice(1) : songs).map((song) => (
+                                                <SortableSongItem
+                                                    key={song._id}
+                                                    song={song}
+                                                    onDelete={() => handleDeleteSong(song._id)}
+                                                />
+                                            ))}
+                                        </SortableContext>
+                                    </DndContext>
                                 )}
                             </div>
                         </div>

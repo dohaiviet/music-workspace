@@ -21,18 +21,50 @@ export async function POST(request: NextRequest) {
         // Get current playback state
         const playback = await Playback.findOne({});
 
-        if (!playback || !playback.currentSongId) {
+        if (!playback) {
+            // If no playback document exists, create one
+            const newPlayback = new Playback({
+                currentSongId: null,
+                startedAt: null,
+                updatedAt: new Date(),
+            });
+            await newPlayback.save();
+            // Then proceed with the new playback object
+            // Or, if the intention is to always have a playback document,
+            // the following logic will handle the 'no song playing' case.
+        }
+
+        // Find the current song (first queued song)
+        const currentSong = await Song.findOne({ status: 'queued' }).sort({ order: 1, createdAt: 1 });
+
+        if (!currentSong) {
             return NextResponse.json(
                 { error: 'No song is currently playing' },
                 { status: 400 }
             );
         }
 
-        // Delete the current song
-        await Song.findByIdAndDelete(playback.currentSongId);
+        // Mark current song as played
+        currentSong.status = 'played';
+        currentSong.playedAt = new Date();
+        await currentSong.save();
 
-        // Find the next song in queue
-        const nextSong = await Song.findOne({}).sort({ createdAt: 1 });
+        // Find next song: prioritize queued songs (sorted by order), then fall back to oldest played song
+        let nextSong = await Song.findOne({ status: 'queued' }).sort({ order: 1, createdAt: 1 });
+
+        if (!nextSong) {
+            // No queued songs, pick oldest played song for auto-replay
+            nextSong = await Song.findOne({ status: 'played' }).sort({ playedAt: 1 });
+
+            if (nextSong) {
+                // Mark it as queued again for replay
+                nextSong.status = 'queued';
+                // Put it at the end of the queue if new songs are added
+                const lastSong = await Song.findOne({ status: 'queued' }).sort({ order: -1 });
+                nextSong.order = lastSong && lastSong.order !== undefined ? lastSong.order + 1 : 0;
+                await nextSong.save();
+            }
+        }
 
         if (nextSong) {
             playback.currentSongId = nextSong._id;
