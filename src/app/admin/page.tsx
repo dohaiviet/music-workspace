@@ -30,6 +30,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 import SongCard from '@/components/SongCard';
 import UserAvatar from '@/components/UserAvatar';
+import Toast from '@/components/Toast';
 
 // Sortable Item Component
 function SortableSongItem({ song, onDelete }: { song: Song; onDelete: () => void }) {
@@ -88,6 +89,13 @@ export default function AdminPage() {
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
+    // Toast state
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type });
+    };
+
     const currentSong = songs.find(s => s._id === currentSongId);
 
     const playerRef = React.useRef<any>(null);
@@ -144,9 +152,10 @@ export default function AdminPage() {
                 }
                 console.log('Reorder success');
                 // alert('Reorder success'); // Debug - commented out to avoid popup spam
+                fetchSongs(); // Force sync with server
             } catch (error) {
                 console.error('Failed to reorder songs:', error);
-                alert('Failed to reorder songs: ' + String(error));
+                showToast('Không thể sắp xếp lại danh sách: ' + String(error), 'error');
                 // Revert on error
                 fetchSongs();
             } finally {
@@ -227,7 +236,7 @@ export default function AdminPage() {
             fetchSongs();
         } catch (error) {
             console.error('Error skipping song:', error);
-            alert('Failed to skip song');
+            showToast('Không thể chuyển bài', 'error');
         }
     };
 
@@ -246,7 +255,7 @@ export default function AdminPage() {
             fetchSongs();
         } catch (error) {
             console.error('Error deleting song:', error);
-            alert('Failed to delete song');
+            showToast('Xóa bài hát thất bại', 'error');
         }
     };
 
@@ -267,7 +276,7 @@ export default function AdminPage() {
             fetchUsers();
         } catch (error) {
             console.error('Error updating user:', error);
-            alert('Failed to update user');
+            showToast('Cập nhật người dùng thất bại', 'error');
         }
     };
 
@@ -286,7 +295,7 @@ export default function AdminPage() {
             fetchUsers();
         } catch (error) {
             console.error('Error deleting user:', error);
-            alert('Xóa người dùng thất bại');
+            showToast('Xóa người dùng thất bại', 'error');
         }
     };
 
@@ -318,7 +327,7 @@ export default function AdminPage() {
             fetchSongs();
         } catch (error: any) {
             console.error('Error adding song:', error);
-            alert(error.message || 'Thêm bài hát thất bại. Vui lòng kiểm tra link và thử lại.');
+            showToast(error.message || 'Thêm bài hát thất bại. Vui lòng kiểm tra link và thử lại.', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -340,7 +349,7 @@ export default function AdminPage() {
             setSearchResults(data.videos);
         } catch (error: any) {
             console.error('Error searching:', error);
-            alert(error.message || 'Tìm kiếm thất bại');
+            showToast(error.message || 'Tìm kiếm thất bại', 'error');
         } finally {
             setIsSearching(false);
         }
@@ -363,10 +372,10 @@ export default function AdminPage() {
 
             fetchSongs();
             // Optional: Clear search or show success message
-            alert('Đã thêm bài hát vào danh sách!');
+            showToast('Đã thêm bài hát vào danh sách!', 'success');
         } catch (error) {
             console.error('Error adding song:', error);
-            alert('Thêm bài hát thất bại');
+            showToast('Thêm bài hát thất bại', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -487,18 +496,18 @@ export default function AdminPage() {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <main className="max-w-7xl mx-auto px-4 py-4 lg:py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                     {/* Left Column - Player & Queue */}
                     <div className="lg:col-span-2 space-y-8">
                         {/* YouTube Player */}
                         {currentSong && (
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6">
-                                <div className="flex items-center justify-between mb-4">
+                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                                     <h2 className="text-xl font-bold gradient-text">Đang Phát</h2>
                                     <button
                                         onClick={handleNextSong}
-                                        className="cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                                        className="w-full sm:w-auto cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
                                     >
                                         Bài Tiếp ⏭️
                                     </button>
@@ -518,15 +527,15 @@ export default function AdminPage() {
                         )}
 
                         {/* Add Song Section */}
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6">
-                            <div className="flex items-center justify-between mb-4">
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                                 <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
                                     Thêm Bài Hát
                                 </h2>
-                                <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
+                                <div className="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1 w-full sm:w-auto">
                                     <button
                                         onClick={() => setSearchMode('search')}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'search'
+                                        className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'search'
                                             ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
                                             : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                                             }`}
@@ -535,7 +544,7 @@ export default function AdminPage() {
                                     </button>
                                     <button
                                         onClick={() => setSearchMode('link')}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'link'
+                                        className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-all ${searchMode === 'link'
                                             ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
                                             : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                                             }`}
@@ -546,7 +555,7 @@ export default function AdminPage() {
                             </div>
 
                             {searchMode === 'link' ? (
-                                <form onSubmit={handleAddSong} className="flex gap-3">
+                                <form onSubmit={handleAddSong} className="flex flex-col sm:flex-row gap-3">
                                     <input
                                         type="text"
                                         value={youtubeUrl}
@@ -557,14 +566,14 @@ export default function AdminPage() {
                                     <button
                                         type="submit"
                                         disabled={isSubmitting}
-                                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                        className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none active:scale-95"
                                     >
                                         {isSubmitting ? 'Đang thêm...' : 'Thêm'}
                                     </button>
                                 </form>
                             ) : (
                                 <div className="space-y-4">
-                                    <form onSubmit={handleSearch} className="flex gap-3">
+                                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
                                         <input
                                             type="text"
                                             value={searchQuery}
@@ -575,7 +584,7 @@ export default function AdminPage() {
                                         <button
                                             type="submit"
                                             disabled={isSearching}
-                                            className="px-8 py-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all disabled:opacity-50"
+                                            className="w-full sm:w-auto px-8 py-3 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all disabled:opacity-50 active:scale-95"
                                         >
                                             {isSearching ? '...' : 'Tìm'}
                                         </button>
@@ -614,7 +623,7 @@ export default function AdminPage() {
                         </div>
 
                         {/* Queue */}
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-6">
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
                             <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">
                                 Danh Sách Chờ ({currentSong ? songs.length - 1 : songs.length})
                             </h2>
@@ -682,6 +691,14 @@ export default function AdminPage() {
                     </div>
                 </div>
             </main>
+
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </div>
     );
 }

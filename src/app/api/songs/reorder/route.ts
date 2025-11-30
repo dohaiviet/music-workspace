@@ -42,7 +42,7 @@ export async function PUT(request: NextRequest) {
         console.log('Operations count:', operations.length);
 
         if (operations.length > 0) {
-            const result = await Song.collection.bulkWrite(operations);
+            const result = await Song.bulkWrite(operations);
             console.log('BulkWrite result:', result);
         }
 
