@@ -12,9 +12,10 @@ interface SongCardProps {
     isCurrentlyPlaying?: boolean;
     onDelete?: () => void;
     showDelete?: boolean;
+    action?: React.ReactNode;
 }
 
-export default function SongCard({ song, isCurrentlyPlaying = false, onDelete, showDelete = false }: SongCardProps) {
+export default function SongCard({ song, isCurrentlyPlaying = false, onDelete, showDelete = false, action }: SongCardProps) {
     return (
         <div className={`relative flex items-center gap-4 p-4 rounded-xl border transition-all ${isCurrentlyPlaying
             ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/50 shadow-lg shadow-purple-500/20'
@@ -50,6 +51,8 @@ export default function SongCard({ song, isCurrentlyPlaying = false, onDelete, s
                     <span className="truncate">{song.addedByName}</span>
                 </div>
             </div>
+
+            {action}
 
             {showDelete && onDelete && (
                 <button

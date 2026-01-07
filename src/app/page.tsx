@@ -26,6 +26,9 @@ export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [historySongs, setHistorySongs] = useState<Song[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,12 +48,16 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    // Fetch current user
     fetchUser();
-
-    // Fetch songs
     fetchSongs();
+
+    const songInterval = setInterval(fetchSongs, 3000);
+    return () => clearInterval(songInterval);
   }, []);
+
+  useEffect(() => {
+    fetchHistory(historyPage);
+  }, [historyPage]);
 
   const fetchUser = async () => {
     try {
@@ -82,6 +89,26 @@ export default function HomePage() {
     }
   };
 
+  const fetchHistory = async (page = 1) => {
+    try {
+      const response = await fetch(`/api/songs/history?page=${page}&limit=10`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setHistorySongs(data.songs);
+      setHistoryTotalPages(data.pagination.pages);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  };
+
+  const handleHistoryPageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= historyTotalPages) {
+      setHistoryPage(newPage);
+      fetchHistory(newPage);
+    }
+  };
+
   const handleAddSong = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -107,7 +134,8 @@ export default function HomePage() {
       }
 
       setYoutubeUrl('');
-      fetchSongs();
+      setYoutubeUrl('');
+      await fetchSongs();
     } catch (error: any) {
       console.error('Error adding song:', error);
       showToast(error.message || 'Thêm bài hát thất bại. Vui lòng kiểm tra link và thử lại.', 'error');
@@ -153,7 +181,7 @@ export default function HomePage() {
         throw new Error('Failed to add song');
       }
 
-      fetchSongs();
+      await fetchSongs();
       showToast('Đã thêm bài hát vào danh sách!', 'success');
     } catch (error) {
       console.error('Error adding song:', error);
@@ -216,7 +244,7 @@ export default function HomePage() {
       <main className="max-w-4xl mx-auto px-4 py-4 lg:py-8">
         {/* Currently Playing */}
         {currentSong ? (
-          <div className="mb-8">
+          <div className="mb-8 cursor-pointer">
             <h2 className="text-2xl font-bold gradient-text mb-4 flex items-center gap-2">
               🎵 Đang Phát
             </h2>
@@ -354,6 +382,63 @@ export default function HomePage() {
                 ))
             )}
           </div>
+        </div>
+
+        {/* History */}
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6 mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+              Đã phát gần đây
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {historySongs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-zinc-500 dark:text-zinc-400">
+                  Chưa có lịch sử phát nhạc.
+                </p>
+              </div>
+            ) : (
+              historySongs.map((song) => (
+                <SongCard
+                  key={song._id}
+                  song={song}
+                  action={
+                    <button
+                      onClick={() => handleAddSearchResult(song.videoId)}
+                      disabled={isSubmitting}
+                      className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                    >
+                      Phát lại
+                    </button>
+                  }
+                />
+              ))
+            )}
+          </div>
+
+          {/* Pagination */}
+          {historyTotalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-6">
+              <button
+                onClick={() => handleHistoryPageChange(historyPage - 1)}
+                disabled={historyPage === 1}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Trước
+              </button>
+              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                Trang {historyPage} / {historyTotalPages}
+              </span>
+              <button
+                onClick={() => handleHistoryPageChange(historyPage + 1)}
+                disabled={historyPage === historyTotalPages}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </div>
       </main>
 

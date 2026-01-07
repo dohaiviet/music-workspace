@@ -78,6 +78,9 @@ export default function AdminPage() {
     const [user, setUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [songs, setSongs] = useState<Song[]>([]);
+    const [historySongs, setHistorySongs] = useState<Song[]>([]);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyTotalPages, setHistoryTotalPages] = useState(1);
     const [currentSongId, setCurrentSongId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -182,6 +185,10 @@ export default function AdminPage() {
         return () => clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        fetchHistory(historyPage);
+    }, [historyPage]);
+
     const fetchUser = async () => {
         try {
             // Check if admin session exists
@@ -220,6 +227,45 @@ export default function AdminPage() {
             setCurrentSongId(data.currentSongId);
         } catch (error) {
             console.error('Error fetching songs:', error);
+        }
+    };
+
+    const fetchHistory = async (page = 1) => {
+        try {
+            const response = await fetch(`/api/songs/history?page=${page}&limit=10`);
+            if (!response.ok) return;
+            const data = await response.json();
+            setHistorySongs(data.songs);
+            setHistoryTotalPages(data.pagination.pages);
+        } catch (error) {
+            console.error('Error fetching history:', error);
+        }
+    };
+
+    const handleHistoryPageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= historyTotalPages) {
+            setHistoryPage(newPage);
+            fetchHistory(newPage);
+        }
+    };
+
+    const handleClearHistory = async () => {
+        if (!confirm('Bạn có chắc muốn xóa toàn bộ lịch sử phát nhạc? Hành động này không thể hoàn tác.')) return;
+
+        try {
+            const response = await fetch('/api/songs/history', {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to clear history');
+            }
+
+            fetchHistory(1);
+            showToast('Đã xóa toàn bộ lịch sử', 'success');
+        } catch (error) {
+            console.error('Error clearing history:', error);
+            showToast('Xóa lịch sử thất bại', 'error');
         }
     };
 
@@ -324,7 +370,8 @@ export default function AdminPage() {
             }
 
             setYoutubeUrl('');
-            fetchSongs();
+            setYoutubeUrl('');
+            await fetchSongs();
         } catch (error: any) {
             console.error('Error adding song:', error);
             showToast(error.message || 'Thêm bài hát thất bại. Vui lòng kiểm tra link và thử lại.', 'error');
@@ -370,7 +417,7 @@ export default function AdminPage() {
                 throw new Error('Failed to add song');
             }
 
-            fetchSongs();
+            await fetchSongs();
             // Optional: Clear search or show success message
             showToast('Đã thêm bài hát vào danh sách!', 'success');
         } catch (error) {
@@ -654,6 +701,71 @@ export default function AdminPage() {
                                     </DndContext>
                                 )}
                             </div>
+                        </div>
+
+                        {/* History */}
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">
+                                    Đã phát gần đây
+                                </h2>
+                                <div className="flex gap-2">
+                                    {historySongs.length > 0 && (
+                                         <button
+                                            onClick={handleClearHistory}
+                                            className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        >
+                                            Xóa hết
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                {historySongs.length === 0 ? (
+                                    <p className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                                        Chưa có lịch sử phát nhạc
+                                    </p>
+                                ) : (
+                                    historySongs.map((song) => (
+                                        <SongCard
+                                            key={song._id}
+                                            song={song}
+                                            action={
+                                                <button
+                                                    onClick={() => handleAddSearchResult(song.videoId)}
+                                                    disabled={isSubmitting}
+                                                    className="px-3 cursor-pointer py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                                                >
+                                                    Phát lại
+                                                </button>
+                                            }
+                                        />
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Pagination */}
+                            {historyTotalPages > 1 && (
+                                <div className="flex justify-center items-center gap-4 pt-8">
+                                    <button
+                                        onClick={() => handleHistoryPageChange(historyPage - 1)}
+                                        disabled={historyPage === 1}
+                                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Trước
+                                    </button>
+                                    <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                        Trang {historyPage} / {historyTotalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => handleHistoryPageChange(historyPage + 1)}
+                                        disabled={historyPage === historyTotalPages}
+                                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Sau
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
