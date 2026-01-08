@@ -16,6 +16,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (adminUser.username !== 'admin') {
+            return NextResponse.json(
+                { error: 'Forbidden: Super Admin only' },
+                { status: 403 }
+            );
+        }
+
         await dbConnect();
 
         // Get current playback state

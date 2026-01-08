@@ -18,6 +18,13 @@ export async function PATCH(
             );
         }
 
+        if (adminUser.username !== 'admin') {
+            return NextResponse.json(
+                { error: 'Forbidden: Super Admin only' },
+                { status: 403 }
+            );
+        }
+
         const { id } = await params;
         const { isAdmin } = await request.json();
 

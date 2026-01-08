@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import SongCard from '@/components/SongCard';
 import UserAvatar from '@/components/UserAvatar';
@@ -47,6 +47,19 @@ export default function HomePage() {
     setToast({ message, type });
   };
 
+  const fetchHistory = useCallback(async (page = 1) => {
+    try {
+      const response = await fetch(`/api/songs/history?page=${page}&limit=10`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setHistorySongs(data.songs);
+      setHistoryTotalPages(data.pagination.pages);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  }, []); // Empty dependency array as it uses only local vars or setters
+
   useEffect(() => {
     fetchUser();
     fetchSongs();
@@ -56,8 +69,13 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetchHistory(historyPage);
-  }, [historyPage]);
+    if (user) {
+      fetchHistory(historyPage);
+    }
+  }, [historyPage, user, fetchHistory]);
+
+  // ... (fetchUser and fetchSongs implementation remains potentially same, but I need to be careful not to delete them if they are in the chunk)
+  // Wait, I need to match the chunk correctly.
 
   const fetchUser = async () => {
     try {
@@ -89,23 +107,9 @@ export default function HomePage() {
     }
   };
 
-  const fetchHistory = async (page = 1) => {
-    try {
-      const response = await fetch(`/api/songs/history?page=${page}&limit=10`);
-      if (!response.ok) return;
-
-      const data = await response.json();
-      setHistorySongs(data.songs);
-      setHistoryTotalPages(data.pagination.pages);
-    } catch (error) {
-      console.error('Error fetching history:', error);
-    }
-  };
-
   const handleHistoryPageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= historyTotalPages) {
       setHistoryPage(newPage);
-      fetchHistory(newPage);
     }
   };
 
@@ -133,7 +137,6 @@ export default function HomePage() {
         throw new Error(data.error || 'Failed to add song');
       }
 
-      setYoutubeUrl('');
       setYoutubeUrl('');
       await fetchSongs();
     } catch (error: any) {
@@ -391,8 +394,8 @@ export default function HomePage() {
               Đã phát gần đây
             </h2>
           </div>
-          <div className="space-y-3">
-            {historySongs.length === 0 ? (
+          <div className="space-y-3"> 
+             {historySongs.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-zinc-500 dark:text-zinc-400">
                   Chưa có lịch sử phát nhạc.

@@ -60,6 +60,7 @@ function SortableSongItem({ song, onDelete }: { song: Song; onDelete: () => void
 interface User {
     _id: string;
     name: string;
+    username?: string;
     avatar: string;
     isAdmin: boolean;
 }
@@ -198,7 +199,11 @@ export default function AdminPage() {
                 return;
             }
 
-            setUser({ _id: 'admin', name: 'Admin', avatar: '', isAdmin: true });
+            // We need to fetch the actual user details to know if they are super admin
+            const userResponse = await fetch('/api/auth/me');
+            const userData = await userResponse.json();
+            
+            setUser(userData.user);
         } catch (error) {
             console.error('Error checking admin:', error);
             router.push('/admin/login');
@@ -305,6 +310,26 @@ export default function AdminPage() {
         }
     };
 
+    const handleDeleteHistorySong = async (songId: string) => {
+        if (!confirm('Bạn có chắc muốn xóa bài hát này khỏi lịch sử?')) return;
+
+        try {
+            const response = await fetch(`/api/songs/${songId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete song');
+            }
+
+            fetchHistory(historyPage);
+            showToast('Đã xóa bài hát khỏi lịch sử', 'success');
+        } catch (error) {
+            console.error('Error deleting song:', error);
+            showToast('Xóa bài hát thất bại', 'error');
+        }
+    };
+
     const handleToggleAdmin = async (userId: string, currentIsAdmin: boolean) => {
         try {
             const response = await fetch(`/api/users/${userId}`, {
@@ -344,6 +369,15 @@ export default function AdminPage() {
             showToast('Xóa người dùng thất bại', 'error');
         }
     };
+    
+    // ... (rest of the file)
+    
+// Wait, I should do two separate replace calls or one smart one.
+// The instruction above asked to ADD the function AND UPDATE the UI.
+// But the ReplacementContent above only includes the functions.
+// I will split this into two steps for safety, or try to do it in one if I can match the large block.
+// The file is large, matching a huge block is risky.
+// I'll stick to adding the function first.
 
     const handleAddSong = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -547,29 +581,38 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                     {/* Left Column - Player & Queue */}
                     <div className="lg:col-span-2 space-y-8">
-                        {/* YouTube Player */}
+                        {/* Now Playing Section */}
                         {currentSong && (
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-                                    <h2 className="text-xl font-bold gradient-text">Đang Phát</h2>
-                                    <button
-                                        onClick={handleNextSong}
-                                        className="w-full sm:w-auto cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
-                                    >
-                                        Bài Tiếp ⏭️
-                                    </button>
-                                </div>
-                                <div className="aspect-video rounded-xl overflow-hidden mb-4">
-                                    <div
-                                        id="youtube-player"
-                                        style={{ width: '100%', height: '100%' }}
-                                    />
-                                </div>
-                                <h3 className="font-semibold text-lg text-zinc-900 dark:text-white">{currentSong.title}</h3>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <UserAvatar src={currentSong.addedByAvatar} alt={currentSong.addedByName} size="sm" />
-                                    <span className="text-sm text-zinc-600 dark:text-zinc-400">Được thêm bởi {currentSong.addedByName}</span>
-                                </div>
+                            <div className="mb-8">
+                                {user?.username === 'admin' ? (
+                                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+                                            <h2 className="text-xl font-bold gradient-text">Đang Phát</h2>
+                                            <button
+                                                onClick={handleNextSong}
+                                                className="w-full sm:w-auto cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
+                                            >
+                                                Bài Tiếp ⏭️
+                                            </button>
+                                        </div>
+                                        <div className="aspect-video rounded-xl overflow-hidden mb-4">
+                                            <div
+                                                id="youtube-player"
+                                                style={{ width: '100%', height: '100%' }}
+                                            />
+                                        </div>
+                                        <h3 className="font-semibold text-lg text-zinc-900 dark:text-white">{currentSong.title}</h3>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <UserAvatar src={currentSong.addedByAvatar} alt={currentSong.addedByName} size="sm" />
+                                            <span className="text-sm text-zinc-600 dark:text-zinc-400">Được thêm bởi {currentSong.addedByName}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
+                                        <h2 className="text-xl font-bold gradient-text mb-4">🎵 Đang Phát</h2>
+                                        <SongCard song={currentSong} isCurrentlyPlaying={true} />
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -711,7 +754,7 @@ export default function AdminPage() {
                                 </h2>
                                 <div className="flex gap-2">
                                     {historySongs.length > 0 && (
-                                         <button
+                                        <button
                                             onClick={handleClearHistory}
                                             className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                         >
@@ -730,14 +773,18 @@ export default function AdminPage() {
                                         <SongCard
                                             key={song._id}
                                             song={song}
+                                            showDelete
+                                            onDelete={() => handleDeleteHistorySong(song._id)}
                                             action={
-                                                <button
-                                                    onClick={() => handleAddSearchResult(song.videoId)}
-                                                    disabled={isSubmitting}
-                                                    className="px-3 cursor-pointer py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-                                                >
-                                                    Phát lại
-                                                </button>
+                                                user?.username === 'admin' ? (
+                                                    <button
+                                                        onClick={() => handleAddSearchResult(song.videoId)}
+                                                        disabled={isSubmitting}
+                                                        className="px-3 cursor-pointer py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                                                    >
+                                                        Phát lại
+                                                    </button>
+                                                ) : null
                                             }
                                         />
                                     ))
@@ -790,12 +837,24 @@ export default function AdminPage() {
                                         )}
                                     </div>
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleDeleteUser(u._id)}
-                                            className="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                                        >
-                                            🗑️
-                                        </button>
+                                        {!u.isAdmin && user?.username === 'admin' && (
+                                            <button
+                                                onClick={() => handleToggleAdmin(u._id, u.isAdmin)}
+                                                className="px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded"
+                                                title="Cấp quyền Admin"
+                                            >
+                                                🛡️
+                                            </button>
+                                        )}
+                                        {!u.isAdmin && (
+                                            <button
+                                                onClick={() => handleDeleteUser(u._id)}
+                                                className="px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                                title="Xóa người dùng"
+                                            >
+                                                🗑️
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
