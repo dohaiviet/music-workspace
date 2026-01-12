@@ -39,30 +39,21 @@ export async function getAdminUser() {
     const cookieStore = await cookies();
     const adminSessionId = cookieStore.get('adminSessionId')?.value;
 
-    if (!adminSessionId) {
-        return null;
-    }
-
-    // Check if it's a DB admin session
     await dbConnect();
-    const adminUser = await User.findOne({ adminSessionId, isAdmin: true });
 
-    if (adminUser) {
-        return { isAdmin: true, ...adminUser.toObject() };
+    // 1. Try Admin Session Cookie
+    if (adminSessionId) {
+        const adminUser = await User.findOne({ adminSessionId, isAdmin: true });
+        if (adminUser) {
+            return { isAdmin: true, ...adminUser.toObject() };
+        }
     }
 
-    // Fallback: Check if it's a legacy env session (if we want to keep supporting it temporarily)
-    // For now, let's assume if it's not in DB, it might be the legacy session ID if we didn't clear it.
-    // But to be safe and strict, we should probably rely on DB if possible.
-    // However, the previous implementation just stored a random ID in cookie and didn't check against anything server-side other than existence?
-    // Wait, the previous implementation was:
-    // cookieStore.set('adminSessionId', sessionId, ...)
-    // And getAdminUser just checked: if (adminSessionId) return { isAdmin: true }
-    // This was very insecure if the session ID wasn't validated against anything! 
-    // Anyone could set a cookie named adminSessionId? No, because it's httpOnly and signed? No, Next.js cookies are secure but if I just check for existence...
-    // Actually, the previous implementation generated a random ID and set it. It didn't store it anywhere server-side.
-    // So yes, it was stateless and relied on the fact that only the server could set it.
-    // But we want stateful now.
+    // 2. Fallback: Check Regular Session (for promoted admins)
+    const currentUser = await getCurrentUser();
+    if (currentUser && currentUser.isAdmin) {
+         return { isAdmin: true, ...currentUser.toObject() };
+    }
 
     return null;
 }

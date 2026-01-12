@@ -845,15 +845,18 @@ export default function AdminPage() {
                                         )}
                                     </div>
                                     <div className="flex gap-2">
-                                        {!u.isAdmin && user?.username === 'admin' && (
-                                            <button
-                                                onClick={() => handleToggleAdmin(u._id, u.isAdmin)}
-                                                className="px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded"
-                                                title="Cấp quyền Admin"
-                                            >
-                                                🛡️
-                                            </button>
-                                        )}
+                                    {user?.username === 'admin' && u.username !== 'admin' && (
+                                        <button
+                                            onClick={() => handleToggleAdmin(u._id, u.isAdmin)}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                                u.isAdmin
+                                                ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+                                                : 'bg-purple-100 text-purple-600 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50'
+                                            }`}
+                                        >
+                                            {u.isAdmin ? 'Hủy quyền' : 'Cấp quyền'}
+                                        </button>
+                                    )}
                                         {!u.isAdmin && (
                                             <button
                                                 onClick={() => handleDeleteUser(u._id)}
