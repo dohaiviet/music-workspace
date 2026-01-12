@@ -19,7 +19,7 @@ export default function TetDecorations() {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden tet-only">
       {/* Corner Lanterns (CSS drawing or emoji for simplicity) */}
       <div className="absolute top-0 left-4 text-4xl animate-swing origin-top">🏮</div>
       <div className="absolute top-0 right-4 text-4xl animate-swing origin-top" style={{ animationDelay: '1s' }}>🏮</div>

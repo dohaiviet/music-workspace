@@ -2,43 +2,83 @@
 
 @theme {
   /* 
-    TET HOLIDAY THEME PRESET 
-    Lucky Red & Gold palette for Lunar New Year
+    DEFAULT THEME (NEBULA) 
+    A deep, premium space aesthetic.
+    These are the DEFAULT values.
   */
+  --color-zinc-50: #F0F4F8;
+  --color-zinc-100: #D9E2EC;
+  --color-zinc-200: #BCCCDC;
+  --color-zinc-300: #9FB3C8;
+  --color-zinc-400: #829AB1;
+  --color-zinc-500: #627D98;
+  --color-zinc-600: #486581;
+  --color-zinc-700: #334E68;
+  --color-zinc-800: #243B53;
+  --color-zinc-900: #102A43;
+  --color-zinc-950: #0B0F19;
 
-  /* Base Backgrounds -> Deep Lucky Red/Maroon */
-  --color-zinc-50: #FFF9E6; /* Cream Gold */
+  --color-purple-50: #F3E6FF;
+  --color-purple-100: #EAD0FF;
+  --color-purple-200: #D8A6FF;
+  --color-purple-300: #C47AFF;
+  --color-purple-400: #B554FF;
+  --color-purple-500: #9D00FF;
+  --color-purple-600: #7F00FF;
+  --color-purple-700: #6200EA;
+  --color-purple-800: #4A00B0;
+  --color-purple-900: #320076;
+  --color-purple-950: #19003B;
+
+  --color-pink-50: #FFEFF7;
+  --color-pink-100: #FFE0EF;
+  --color-pink-200: #FFB3D9;
+  --color-pink-300: #FF85C2;
+  --color-pink-400: #FF52A8;
+  --color-pink-500: #FF0080;
+  --color-pink-600: #D4006A;
+  --color-pink-700: #AA0055;
+  --color-pink-800: #800040;
+  --color-pink-900: #55002A;
+  --color-pink-950: #2B0015;
+}
+
+/* 
+  TET THEME OVERRIDES 
+  Applied when data-theme="tet" is present on the html element 
+*/
+:root[data-theme="tet"] {
+  /* Red/Gold Palette */
+  --color-zinc-50: #FFF9E6; 
   --color-zinc-100: #FFF0B3;
   --color-zinc-200: #FFE680;
-  --color-zinc-300: #FFD700; /* Gold */
+  --color-zinc-300: #FFD700;
   --color-zinc-400: #FFB700;
   --color-zinc-500: #FF8000;
-  --color-zinc-600: #D90429; /* Vivid Red */
+  --color-zinc-600: #D90429;
   --color-zinc-700: #9B0000;
   --color-zinc-800: #730000;
-  --color-zinc-900: #5C0000; /* Dark Red */
-  --color-zinc-950: #3A0000; /* Deep Maroon Background */
+  --color-zinc-900: #5C0000;
+  --color-zinc-950: #3A0000;
 
-  /* Primary -> Bright Lucky Red */
   --color-purple-50: #FFEEEE;
   --color-purple-100: #FFCDD2;
   --color-purple-200: #EF9A9A;
   --color-purple-300: #E57373;
   --color-purple-400: #EF5350;
-  --color-purple-500: #EF233C; /* Bright Red */
-  --color-purple-600: #D90429; /* Lucky Red */
+  --color-purple-500: #EF233C;
+  --color-purple-600: #D90429;
   --color-purple-700: #C62828;
   --color-purple-800: #B71C1C;
   --color-purple-900: #880E4F;
   --color-purple-950: #4A0000;
 
-  /* Accent -> Golden Yellow */
   --color-pink-50: #FFFDE7;
   --color-pink-100: #FFF9C4;
   --color-pink-200: #FFF59D;
   --color-pink-300: #FFF176;
   --color-pink-400: #FFEE58;
-  --color-pink-500: #FFD700; /* Pure Gold */
+  --color-pink-500: #FFD700;
   --color-pink-600: #FFC000;
   --color-pink-700: #FFB000;
   --color-pink-800: #FFA000;
@@ -48,17 +88,29 @@
 
 @layer utilities {
   .gradient-bg {
+    background: linear-gradient(135deg, var(--color-purple-900) 0%, var(--color-zinc-950) 100%);
+  }
+
+  /* Override gradient for Tet */
+  :root[data-theme="tet"] .gradient-bg {
     background: linear-gradient(135deg, var(--color-zinc-900) 0%, var(--color-zinc-950) 100%);
   }
 
   .gradient-text {
+    background: linear-gradient(to right, var(--color-purple-400), var(--color-pink-500));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Override gradient text for Tet */
+  :root[data-theme="tet"] .gradient-text {
     background: linear-gradient(to right, var(--color-pink-500), var(--color-purple-500));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   
-  /* Gold Scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
   }
@@ -68,35 +120,44 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-      background-color: var(--color-pink-600);
+      background-color: var(--color-zinc-700);
       border-radius: 20px;
+  }
+
+  :root[data-theme="tet"] .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: var(--color-pink-600);
   }
 }
 
 @keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 20px rgba(217, 4, 41, 0.5); /* Red glow */
-  }
+  0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(127, 0, 255, 0.5); }
+  50% { opacity: 0.8; box-shadow: 0 0 30px rgba(255, 0, 128, 0.6); }
+}
 
-  50% {
-    opacity: 0.8;
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); /* Gold glow */
-  }
+@keyframes pulse-glow-tet {
+  0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(217, 4, 41, 0.5); }
+  50% { opacity: 0.8; box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); }
 }
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+:root[data-theme="tet"] .animate-pulse-glow {
+  animation: pulse-glow-tet 2s ease-in-out infinite;
+}
+
+/* Tet Decorations Visibility */
+.tet-only {
+  display: none;
+}
+:root[data-theme="tet"] .tet-only {
+  display: block;
+}
+
 @keyframes spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .animate-spin-slow {

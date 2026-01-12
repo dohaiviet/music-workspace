@@ -27,6 +27,8 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useTheme } from '@/providers/ThemeProvider';
+import AdminThemeSelector from '@/components/theme/AdminThemeSelector';
 
 import SongCard from '@/components/SongCard';
 import UserAvatar from '@/components/UserAvatar';
@@ -106,6 +108,9 @@ export default function AdminPage() {
 
     const [isDragging, setIsDragging] = useState(false);
     const isDraggingRef = useRef(false);
+
+    // Theme Logic
+    const { theme, setTheme } = useTheme();
 
     // DnD Sensors
     const sensors = useSensors(
@@ -568,12 +573,17 @@ export default function AdminPage() {
                             <p className="text-sm text-zinc-600 dark:text-zinc-400">Admin</p>
                         </div>
                     </div>
-                    <a
-                        href="/"
-                        className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-lg font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all"
-                    >
-                        Về Trang Chủ
-                    </a>
+                    
+                    <div className="flex items-center gap-3">
+                        <AdminThemeSelector />
+
+                        <a
+                            href="/"
+                            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-lg font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all"
+                        >
+                            Về Trang Chủ
+                        </a>
+                    </div>
                 </div>
             </header>
 
