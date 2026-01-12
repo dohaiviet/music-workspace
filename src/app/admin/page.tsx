@@ -776,15 +776,13 @@ export default function AdminPage() {
                                             showDelete
                                             onDelete={() => handleDeleteHistorySong(song._id)}
                                             action={
-                                                user?.username === 'admin' ? (
-                                                    <button
-                                                        onClick={() => handleAddSearchResult(song.videoId)}
-                                                        disabled={isSubmitting}
-                                                        className="px-3 cursor-pointer py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-                                                    >
-                                                        Phát lại
-                                                    </button>
-                                                ) : null
+                                                <button
+                                                    onClick={() => handleAddSearchResult(song.videoId)}
+                                                    disabled={isSubmitting}
+                                                    className="px-3 cursor-pointer py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                                                >
+                                                    Phát lại
+                                                </button>
                                             }
                                         />
                                     ))
