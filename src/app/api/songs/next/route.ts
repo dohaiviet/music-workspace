@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Song from '@/models/Song';
 import Playback from '@/models/Playback';
+import SystemSetting from '@/models/SystemSetting';
 import { getAdminUser } from '@/lib/auth';
 
 // POST /api/songs/next - Skip to next song (admin only)
@@ -51,13 +52,40 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Mark current song as played
-        currentSong.status = 'played';
-        currentSong.playedAt = new Date();
-        await currentSong.save();
+        // Check if this song is already in history
+        const existingHistory = await Song.findOne({
+            videoId: currentSong.videoId,
+            status: 'played'
+        });
 
-        // Find next song: prioritize queued songs (sorted by order), then fall back to oldest played song
-        let nextSong = await Song.findOne({ status: 'queued' }).sort({ order: 1, createdAt: 1 });
+        if (existingHistory) {
+            // Already in history, just remove the current queue entry
+            await Song.deleteOne({ _id: currentSong._id });
+        } else {
+            // Mark current song as played
+            currentSong.status = 'played';
+            currentSong.playedAt = new Date();
+            await currentSong.save();
+        }
+
+        // Check for Radio Mode
+        const radioModeSetting = await SystemSetting.findOne({ key: 'radioMode' });
+        const isRadioMode = radioModeSetting ? radioModeSetting.value : false;
+
+        let nextSong = null;
+
+        if (isRadioMode) {
+            // Prioritize songs with messages
+            nextSong = await Song.findOne({
+                status: 'queued',
+                message: { $exists: true, $ne: '' }
+            }).sort({ order: 1, createdAt: 1 });
+        }
+
+        if (!nextSong) {
+            // Fallback to normal queue (or if Radio Mode is off)
+            nextSong = await Song.findOne({ status: 'queued' }).sort({ order: 1, createdAt: 1 });
+        }
 
         if (!nextSong) {
             // No queued songs, pick oldest played song for auto-replay

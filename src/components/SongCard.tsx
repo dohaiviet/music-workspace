@@ -1,4 +1,8 @@
+'use client';
+import { useState } from 'react';
 import UserAvatar from './UserAvatar';
+import Modal from './Modal';
+import ScrollingMessage from './ScrollingMessage';
 
 interface SongCardProps {
     song: {
@@ -8,6 +12,7 @@ interface SongCardProps {
         addedByName: string;
         addedByAvatar: string;
         videoId: string;
+        message?: string;
     };
     isCurrentlyPlaying?: boolean;
     onDelete?: () => void;
@@ -16,6 +21,8 @@ interface SongCardProps {
 }
 
 export default function SongCard({ song, isCurrentlyPlaying = false, onDelete, showDelete = false, action }: SongCardProps) {
+    const [showMessageModal, setShowMessageModal] = useState(false);
+
     return (
         <div className={`relative flex items-center gap-4 p-4 rounded-xl border transition-all ${isCurrentlyPlaying
             ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/50 shadow-lg shadow-purple-500/20'
@@ -59,6 +66,31 @@ export default function SongCard({ song, isCurrentlyPlaying = false, onDelete, s
                     <UserAvatar src={song.addedByAvatar} alt={song.addedByName} size="sm" />
                     <span className="truncate">{song.addedByName}</span>
                 </div>
+                {song.message && (
+                    isCurrentlyPlaying ? (
+                        <ScrollingMessage
+                            message={song.message}
+                            senderName={song.addedByName}
+                            className="bg-white/50 dark:bg-black/20 rounded-lg"
+                        />
+                    ) : (
+                        <div className="mt-2 bg-zinc-100 dark:bg-zinc-800/50 p-2 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 relative">
+                            <span className="absolute -top-1 left-4 w-2 h-2 bg-zinc-100 dark:bg-zinc-800/50 rotate-45 transform origin-bottom-left"></span>
+                            <p className="line-clamp-2">{song.message}</p>
+                            {song.message.length > 100 && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowMessageModal(true);
+                                    }}
+                                    className="text-xs text-purple-600 hover:text-purple-700 font-medium mt-1 cursor-pointer"
+                                >
+                                    Xem thêm
+                                </button>
+                            )}
+                        </div>
+                    )
+                )}
             </div>
 
             {action}
@@ -71,6 +103,31 @@ export default function SongCard({ song, isCurrentlyPlaying = false, onDelete, s
                     Xóa
                 </button>
             )}
+
+            <Modal
+                isOpen={showMessageModal}
+                onClose={() => setShowMessageModal(false)}
+                className="max-w-md w-full p-6"
+            >
+                <div className="flex items-center gap-3 mb-4">
+                    <UserAvatar src={song.addedByAvatar} alt={song.addedByName} size="md" />
+                    <div>
+                        <p className="font-semibold text-zinc-900 dark:text-white">{song.addedByName}</p>
+                        <p className="text-xs text-zinc-500">đã gửi lời nhắn</p>
+                    </div>
+                </div>
+                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl text-zinc-800 dark:text-zinc-200 text-base leading-relaxed max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {song.message}
+                </div>
+                <div className="mt-6 flex justify-end">
+                    <button
+                        onClick={() => setShowMessageModal(false)}
+                        className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                        Đóng
+                    </button>
+                </div>
+            </Modal>
         </div>
     );
 }

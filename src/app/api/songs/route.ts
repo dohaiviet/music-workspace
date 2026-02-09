@@ -61,6 +61,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        await dbConnect();
+
+        // Check for duplicates in queue (status 'queued' or missing)
+        const existingSong = await Song.findOne({
+            videoId,
+            $or: [{ status: 'queued' }, { status: { $exists: false } }]
+        });
+
+        if (existingSong) {
+            return NextResponse.json(
+                { error: 'Bài hát này đã có trong danh sách chờ!' },
+                { status: 400 }
+            );
+        }
+
         const metadata = await getVideoMetadata(videoId);
 
         if (!metadata) {
@@ -85,6 +100,7 @@ export async function POST(request: NextRequest) {
             addedByName: user.name,
             addedByAvatar: user.avatar,
             order: newOrder,
+            message: body.message,
         });
 
         // If no song is currently playing, set this as the current song
@@ -107,6 +123,41 @@ export async function POST(request: NextRequest) {
         console.error('Error adding song:', error);
         return NextResponse.json(
             { error: 'Failed to add song' },
+            { status: 500 }
+        );
+    }
+}
+// DELETE /api/songs - Clear all songs in queue (except current playing)
+export async function DELETE(request: NextRequest) {
+    try {
+        const user = await getCurrentUser();
+        const admin = await getAdminUser();
+
+        if (!user || !admin) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        await dbConnect();
+
+        const playback = await Playback.findOne({});
+        const currentSongId = playback?.currentSongId;
+
+        if (currentSongId) {
+            // Delete all songs except the one currently playing
+            await Song.deleteMany({ _id: { $ne: currentSongId } });
+        } else {
+            // Delete all songs
+            await Song.deleteMany({});
+        }
+
+        return NextResponse.json({ message: 'Queue cleared' });
+    } catch (error) {
+        console.error('Error clearing queue:', error);
+        return NextResponse.json(
+            { error: 'Failed to clear queue' },
             { status: 500 }
         );
     }

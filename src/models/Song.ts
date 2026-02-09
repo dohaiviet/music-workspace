@@ -12,6 +12,7 @@ export interface ISong extends mongoose.Document {
     status: 'queued' | 'played';
     playedAt?: Date;
     createdAt: Date;
+    message?: string;
 }
 
 const SongSchema = new mongoose.Schema<ISong>({
@@ -59,6 +60,9 @@ const SongSchema = new mongoose.Schema<ISong>({
     createdAt: {
         type: Date,
         default: Date.now,
+    },
+    message: {
+        type: String,
     },
 });
 

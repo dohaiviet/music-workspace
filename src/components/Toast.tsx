@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 
 interface ToastProps {
     message: string;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'warning';
     onClose: () => void;
 }
 
@@ -21,11 +21,13 @@ export default function Toast({ message, type, onClose }: ToastProps) {
             <div
                 className={`flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border ${type === 'success'
                         ? 'bg-white dark:bg-zinc-900 border-green-500/20 text-green-600 dark:text-green-400'
-                        : 'bg-white dark:bg-zinc-900 border-red-500/20 text-red-600 dark:text-red-400'
+                        : type === 'warning'
+                            ? 'bg-white dark:bg-zinc-900 border-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+                            : 'bg-white dark:bg-zinc-900 border-red-500/20 text-red-600 dark:text-red-400'
                     }`}
             >
                 <span className="text-xl">
-                    {type === 'success' ? '✅' : '❌'}
+                    {type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '❌'}
                 </span>
                 <p className="font-medium">{message}</p>
                 <button

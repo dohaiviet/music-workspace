@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import SongCard from '@/components/SongCard';
 import UserAvatar from '@/components/UserAvatar';
 import Toast from '@/components/Toast';
+import Modal from '@/components/Modal';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface User {
   _id: string;
@@ -30,7 +32,10 @@ export default function HomePage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
+  const [radioMode, setRadioMode] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [message, setMessage] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -39,13 +44,19 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
+
 
   // Toast state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     setToast({ message, type });
   };
+
+  const handleCloseToast = useCallback(() => {
+    setToast(null);
+  }, []);
 
   const fetchHistory = useCallback(async (page = 1) => {
     try {
@@ -63,8 +74,12 @@ export default function HomePage() {
   useEffect(() => {
     fetchUser();
     fetchSongs();
+    fetchSettings();
 
-    const songInterval = setInterval(fetchSongs, 3000);
+    const songInterval = setInterval(() => {
+      fetchSongs();
+      fetchSettings();
+    }, 3000);
     return () => clearInterval(songInterval);
   }, []);
 
@@ -102,8 +117,41 @@ export default function HomePage() {
       const data = await response.json();
       setSongs(data.songs);
       setCurrentSongId(data.currentSongId);
+      setSongs(data.songs);
+      setCurrentSongId(data.currentSongId);
     } catch (error) {
       console.error('Error fetching songs:', error);
+    }
+  };
+
+
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setRadioMode(!!data.radioMode);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  const toggleRadioMode = async () => {
+    try {
+      const newMode = !radioMode;
+      setRadioMode(newMode); // Optimistic update
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ radioMode: newMode })
+      });
+      showToast(`Đã ${newMode ? 'bật' : 'tắt'} chế độ Radio`, 'success');
+    } catch (error) {
+      console.error('Error toggling radio mode:', error);
+      showToast('Lỗi khi đổi chế độ Radio', 'error');
+      setRadioMode(!radioMode); // Revert
     }
   };
 
@@ -111,6 +159,11 @@ export default function HomePage() {
     if (newPage >= 1 && newPage <= historyTotalPages) {
       setHistoryPage(newPage);
     }
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setMessage((prev) => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
   };
 
   const handleAddSong = async (e: React.FormEvent) => {
@@ -129,15 +182,23 @@ export default function HomePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ youtubeUrl: youtubeUrl.trim() }),
+        body: JSON.stringify({
+          youtubeUrl: youtubeUrl.trim(),
+          message: message.trim()
+        }),
       });
 
       if (!response.ok) {
         const data = await response.json();
+        if (data.error && data.error.includes('đã có')) {
+          showToast(data.error, 'warning');
+          return;
+        }
         throw new Error(data.error || 'Failed to add song');
       }
 
       setYoutubeUrl('');
+      setMessage('');
       await fetchSongs();
     } catch (error: any) {
       console.error('Error adding song:', error);
@@ -169,6 +230,74 @@ export default function HomePage() {
     }
   };
 
+  const handleQuickAdd = async (video: any) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/songs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          youtubeUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        if (data.error && data.error.includes('đã có')) {
+          showToast(data.error, 'warning');
+          return;
+        }
+        throw new Error(data.error || 'Failed to add song');
+      }
+
+      await fetchSongs();
+      showToast('Đã thêm bài hát!', 'success');
+    } catch (error) {
+      console.error('Error adding song:', error);
+      showToast('Thêm bài hát thất bại', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmMessageAdd = async (video: any) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/songs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          youtubeUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
+          message: message.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        if (data.error && data.error.includes('đã có')) {
+          showToast(data.error, 'warning');
+          return;
+        }
+        throw new Error(data.error || 'Failed to add song');
+      }
+
+      await fetchSongs();
+      showToast('Đã thêm bài hát có lời nhắn!', 'success');
+      setExpandedVideoId(null);
+      setMessage('');
+    } catch (error) {
+      console.error('Error adding song:', error);
+      showToast('Thêm bài hát thất bại', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Keep for history replay
   const handleAddSearchResult = async (videoId: string) => {
     setIsSubmitting(true);
     try {
@@ -181,7 +310,12 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add song');
+        const data = await response.json();
+        if (data.error && data.error.includes('đã có')) {
+          showToast(data.error, 'warning');
+          return;
+        }
+        throw new Error(data.error || 'Failed to add song');
       }
 
       await fetchSongs();
@@ -226,11 +360,7 @@ export default function HomePage() {
             <UserAvatar src={user.avatar} alt={user.name} size="md" />
             <div>
               <p className="font-semibold text-zinc-900 dark:text-white">{user.name}</p>
-              {user.isAdmin && (
-                <span className="text-xs bg-gradient-to-r from-purple-600 to-pink-600 text-white px-2 py-0.5 rounded-full">
-                  Admin
-                </span>
-              )}
+
             </div>
           </div>
           {user.isAdmin && (
@@ -298,21 +428,47 @@ export default function HomePage() {
           </div>
 
           {searchMode === 'link' ? (
-            <form onSubmit={handleAddSong} className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="Dán link YouTube vào đây..."
-                className="flex-1 px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-              />
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none active:scale-95"
-              >
-                {isSubmitting ? 'Đang thêm...' : 'Thêm'}
-              </button>
+            <form onSubmit={handleAddSong} className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="Dán link YouTube vào đây..."
+                  className="flex-1 px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 relative">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Lời nhắn (tùy chọn)..."
+                  className="flex-1 px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  😃
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute top-full right-0 mt-2 z-50">
+                    <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
+                    <div className="relative z-50">
+                      <EmojiPicker onEmojiClick={onEmojiClick} theme={undefined} />
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none active:scale-95 whitespace-nowrap"
+                >
+                  {isSubmitting ? 'Đang thêm...' : 'Thêm'}
+                </button>
+              </div>
             </form>
           ) : (
             <div className="space-y-4">
@@ -336,27 +492,96 @@ export default function HomePage() {
               {searchResults.length > 0 && (
                 <div className="space-y-2 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
                   {searchResults.map((video) => (
-                    <div key={video.videoId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                      <img
-                        src={video.thumbnail}
-                        alt={video.title}
-                        className="w-24 h-16 object-cover rounded-lg"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-zinc-900 dark:text-white truncate" title={video.title}>
-                          {video.title}
-                        </h4>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                          {video.channelTitle}
-                        </p>
+                    <div key={video.videoId} className="flex flex-col p-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
+                          className="w-24 h-16 object-cover rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-zinc-900 dark:text-white truncate" title={video.title}>
+                            {video.title}
+                          </h4>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                            {video.channelTitle}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleQuickAdd(video)}
+                            disabled={isSubmitting}
+                            className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-sm font-medium rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors whitespace-nowrap"
+                          >
+                            Thêm ngay
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (expandedVideoId === video.videoId) {
+                                setExpandedVideoId(null);
+                              } else {
+                                setExpandedVideoId(video.videoId);
+                                setMessage('');
+                              }
+                            }}
+                            disabled={isSubmitting}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${expandedVideoId === video.videoId
+                              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                              }`}
+                          >
+                            {expandedVideoId === video.videoId ? 'Đóng' : 'Lời nhắn'}
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleAddSearchResult(video.videoId)}
-                        disabled={isSubmitting}
-                        className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-purple-200 dark:hover:bg-purple-900/50"
-                      >
-                        Thêm
-                      </button>
+
+                      {/* Expanded Message Input */}
+                      {expandedVideoId === video.videoId && (
+                        <div className="mt-3 animate-in slide-in-from-top-2">
+                          <label className="block text-xs font-medium text-zinc-500 mb-2 pl-1">Lời nhắn:</label>
+                          <div className="relative mb-3">
+                            <textarea
+                              value={message}
+                              onChange={(e) => setMessage(e.target.value)}
+                              placeholder="Nhập lời nhắn..."
+                              className="w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border-none focus:ring-0 focus-visible:ring-0 p-3 min-h-[80px] text-zinc-900 dark:text-white placeholder-zinc-400 resize-none text-sm leading-relaxed custom-scrollbar shadow-inner"
+                              autoFocus
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                              className="absolute bottom-2 right-2 p-1.5 text-zinc-400 hover:text-yellow-500 transition-colors bg-transparent hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 rounded-lg"
+                            >
+                              <span className="text-xl leading-none">😃</span>
+                            </button>
+
+                            <Modal
+                              isOpen={showEmojiPicker}
+                              onClose={() => setShowEmojiPicker(false)}
+                              className="border border-zinc-200 dark:border-zinc-800"
+                            >
+                              <EmojiPicker onEmojiClick={onEmojiClick} theme={undefined} width={320} height={400} />
+                            </Modal>
+                          </div>
+
+                          <div className="flex justify-end gap-3">
+                            <button
+                              onClick={() => setExpandedVideoId(null)}
+                              className="px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors bg-white dark:bg-zinc-800 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-700/80"
+                            >
+                              Hủy bỏ
+                            </button>
+                            <button
+                              onClick={() => handleConfirmMessageAdd(video)}
+                              disabled={isSubmitting}
+                              className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+                            >
+                              <span>Thêm</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -394,8 +619,8 @@ export default function HomePage() {
               Đã phát gần đây
             </h2>
           </div>
-          <div className="space-y-3"> 
-             {historySongs.length === 0 ? (
+          <div className="space-y-3">
+            {historySongs.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-zinc-500 dark:text-zinc-400">
                   Chưa có lịch sử phát nhạc.
@@ -449,9 +674,10 @@ export default function HomePage() {
         <Toast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={handleCloseToast}
         />
       )}
+
     </div>
   );
 }
