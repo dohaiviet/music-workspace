@@ -19,23 +19,72 @@ export function getThumbnailUrl(videoId: string): string {
     return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
 }
 
+// Helper to get rotated keys
+function getApiKeys(): string[] {
+    const keys = process.env.YOUTUBE_API_KEY?.split(',').map(k => k.trim()).filter(k => k) || [];
+    if (keys.length === 0) {
+        throw new Error('YOUTUBE_API_KEY_MISSING');
+    }
+    return keys;
+}
+
+// Helper to fetch with key rotation
+async function fetchWithKeyRotation(urlBuilder: (key: string) => string): Promise<Response> {
+    const keys = getApiKeys();
+    let lastError: any;
+
+    for (const key of keys) {
+        try {
+            const url = urlBuilder(key);
+            const response = await fetch(url);
+
+            if (response.ok) {
+                return response;
+            }
+
+            // Check for quota error (403)
+            if (response.status === 403) {
+                const data = await response.json();
+                const isQuotaError = data.error?.errors?.some((e: any) => e.reason === 'quotaExceeded');
+                
+                if (isQuotaError) {
+                    console.warn(`Key ${key.substring(0, 5)}... exceeded quota. Trying next key.`);
+                    continue; // Try next key
+                }
+            }
+
+            // If not a quota error, return the response as is (let caller handle other errors)
+            return response;
+        } catch (error) {
+            console.error(`Error with key ${key.substring(0, 5)}...:`, error);
+            lastError = error;
+            // Continue to next key on network error? Maybe. Let's assume yes for robustness.
+        }
+    }
+
+    throw lastError || new Error('All API keys failed or quota exceeded.');
+}
+
 export async function getVideoMetadata(videoId: string): Promise<{ title: string; thumbnail: string } | null> {
     const fs = require('fs');
-    const log = (msg: string) => fs.appendFileSync('/tmp/debug_youtube.log', msg + '\n');
+    const log = (msg: string) => {
+        try {
+             fs.appendFileSync('/tmp/debug_youtube.log', msg + '\n');
+        } catch (e) {
+            console.log('[YouTube Debug]', msg);
+        }
+    };
 
     try {
-        const apiKey = process.env.YOUTUBE_API_KEY;
-        log(`getVideoMetadata called for ${videoId}. API Key exists: ${!!apiKey}`);
+        log(`getVideoMetadata called for ${videoId}`);
 
-        if (apiKey) {
-            const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`;
-            log(`Fetching: ${url}`);
-            const response = await fetch(url);
-            log(`Response status: ${response.status}`);
+        try {
+            const response = await fetchWithKeyRotation((key) => 
+                `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${key}`
+            );
 
             if (response.ok) {
                 const data = await response.json();
-                log(`Data: ${JSON.stringify(data)}`);
                 if (data.items && data.items.length > 0) {
                     const item = data.items[0];
                     return {
@@ -46,23 +95,19 @@ export async function getVideoMetadata(videoId: string): Promise<{ title: string
                     log('No items found in API response');
                 }
             } else {
-                const errorText = await response.text();
-                log(`API Error: ${errorText}`);
+                 const errorText = await response.text();
+                 log(`API Error: ${errorText}`);
             }
+        } catch (apiError) {
+             log(`All API keys failed: ${apiError}`);
         }
 
         // Fallback to oEmbed
         log('Falling back to oEmbed');
         const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-        log(`oEmbed status: ${response.status}`);
 
         if (!response.ok) {
             log('oEmbed failed');
-            // Final fallback: return basic info if we have the ID
-            // We can't get the title easily without API, but we can return a placeholder
-            // or just fail. For now, let's try to return something usable if possible,
-            // but the requirement implies we need a title.
-            // If oEmbed fails (404), maybe the video doesn't exist or is private.
             console.warn(`Failed to fetch metadata for ${videoId} via API and oEmbed`);
             return null;
         }
@@ -82,17 +127,12 @@ export async function getVideoMetadata(videoId: string): Promise<{ title: string
 
 export async function searchVideos(query: string): Promise<Array<{ videoId: string; title: string; thumbnail: string; channelTitle: string }>> {
     try {
-        const apiKey = process.env.YOUTUBE_API_KEY;
-        if (!apiKey) {
-            console.error('YOUTUBE_API_KEY is not set');
-            throw new Error('YOUTUBE_API_KEY_MISSING');
-        }
-
-        const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${apiKey}`
+        const response = await fetchWithKeyRotation((key) =>
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&key=${key}`
         );
 
         if (!response.ok) {
+             // If fetchWithKeyRotation returned a non-ok response (that wasn't a quota error we skipped)
             const error = await response.json();
             console.error('YouTube API Error:', error);
             throw new Error('Failed to search videos');
