@@ -101,7 +101,6 @@ export default function AdminPage() {
     const [isSearching, setIsSearching] = useState(false);
     const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [clientPlayback, setClientPlayback] = useState(false);
 
     // Toast state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
@@ -187,14 +186,12 @@ export default function AdminPage() {
         fetchUser();
         fetchUsers();
         fetchSongs();
-        fetchSettings();
 
         // Poll for updates
         const interval = setInterval(() => {
             if (!isDraggingRef.current) {
                 fetchSongs();
                 fetchUsers();
-                fetchSettings();
             }
         }, 3000);
 
@@ -224,35 +221,6 @@ export default function AdminPage() {
             router.push('/admin/login');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const fetchSettings = async () => {
-        try {
-            const res = await fetch('/api/settings');
-            if (res.ok) {
-                const data = await res.json();
-                setClientPlayback(!!data.clientPlayback);
-            }
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-        }
-    };
-
-    const toggleClientPlayback = async () => {
-        try {
-            const newMode = !clientPlayback;
-            setClientPlayback(newMode);
-            await fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ clientPlayback: newMode })
-            });
-            showToast(`Đã ${newMode ? 'bật' : 'tắt'} phát trên thiết bị User`, 'success');
-        } catch (error) {
-            console.error('Error toggling client playback:', error);
-            showToast('Lỗi khi đổi chế độ phát nhạc', 'error');
-            setClientPlayback(!clientPlayback);
         }
     };
 
@@ -716,24 +684,12 @@ export default function AdminPage() {
                                     <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
                                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                                             <h2 className="text-xl font-bold gradient-text">Đang Phát</h2>
-                                            <div className="flex gap-2 w-full sm:w-auto">
-                                                <button
-                                                    onClick={toggleClientPlayback}
-                                                    className={`px-4 py-2 cursor-pointer rounded-lg font-medium transition-all active:scale-95 whitespace-nowrap text-sm flex-1 sm:flex-none ${
-                                                        clientPlayback 
-                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400' 
-                                                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                                                    }`}
-                                                >
-                                                    {clientPlayback ? 'Hướng nội' : 'Hướng ngoại'}
-                                                </button>
-                                                <button
-                                                    onClick={handleNextSong}
-                                                    className="w-full sm:w-auto cursor-pointer flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
-                                                >
-                                                    Bài Tiếp ⏭️
-                                                </button>
-                                            </div>
+                                            <button
+                                                onClick={handleNextSong}
+                                                className="w-full sm:w-auto cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
+                                            >
+                                                Bài Tiếp ⏭️
+                                            </button>
                                         </div>
                                         <div className="aspect-video rounded-xl overflow-hidden mb-4">
                                             <div

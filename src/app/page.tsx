@@ -1,14 +1,6 @@
 'use client';
 
-// YouTube IFrame Player API type declarations
-declare global {
-    interface Window {
-        YT: any;
-        onYouTubeIframeAPIReady: () => void;
-    }
-}
-
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import SongCard from '@/components/SongCard';
 import UserAvatar from '@/components/UserAvatar';
@@ -41,7 +33,6 @@ export default function HomePage() {
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
   const [radioMode, setRadioMode] = useState(false);
-  const [clientPlayback, setClientPlayback] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [message, setMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -141,85 +132,11 @@ export default function HomePage() {
       if (res.ok) {
         const data = await res.json();
         setRadioMode(!!data.radioMode);
-        setClientPlayback(!!data.clientPlayback);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
   };
-
-  const playerRef = useRef<any>(null);
-
-  // Initialize YouTube Player once
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      if (firstScriptTag && firstScriptTag.parentNode) {
-          firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-      } else {
-          document.head.appendChild(tag);
-      }
-
-      window.onYouTubeIframeAPIReady = () => {};
-    }
-
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
-      }
-    };
-  }, []);
-
-  // Load video when currentSong or clientPlayback changes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!currentSongId || !clientPlayback) {
-        if (playerRef.current && playerRef.current.stopVideo) {
-            try { playerRef.current.stopVideo(); } catch (e) {}
-        }
-        return;
-    }
-
-    const loadVideo = () => {
-      if (playerRef.current && playerRef.current.loadVideoById) {
-        playerRef.current.loadVideoById(currentSongId);
-      } else if (window.YT && window.YT.Player) {
-        const playerElement = document.getElementById('youtube-player-user');
-        if (playerElement) {
-          playerRef.current = new window.YT.Player('youtube-player-user', {
-            videoId: currentSongId,
-            playerVars: {
-              autoplay: 1,
-              enablejsapi: 1,
-            },
-            events: {
-              onReady: (event: any) => {
-                  event.target.playVideo();
-              }
-            }
-          });
-        }
-      }
-    };
-
-    if (window.YT && window.YT.Player) {
-        loadVideo();
-    } else {
-        const checkInterval = setInterval(() => {
-            if (window.YT && window.YT.Player) {
-                loadVideo();
-                clearInterval(checkInterval);
-            }
-        }, 100);
-        return () => clearInterval(checkInterval);
-    }
-  }, [currentSongId, clientPlayback]);
 
   const toggleRadioMode = async () => {
     try {
@@ -465,12 +382,6 @@ export default function HomePage() {
               🎵 Đang Phát
             </h2>
             <SongCard song={currentSong} isCurrentlyPlaying={true} />
-            <div className={`mt-4 aspect-video rounded-xl overflow-hidden shadow-lg border border-zinc-200 dark:border-zinc-800 relative group bg-black ${clientPlayback ? 'block' : 'hidden'}`}>
-                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
-                    <p className="text-white text-lg font-bold drop-shadow-md">Hãy nhấp vào video nếu không có tiếng</p>
-                 </div>
-                 <div id="youtube-player-user" style={{ width: '100%', height: '100%' }} />
-            </div>
           </div>
         ) : (
           <div className="mb-8">
