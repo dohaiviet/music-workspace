@@ -101,6 +101,7 @@ export default function AdminPage() {
     const [isSearching, setIsSearching] = useState(false);
     const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [broadcastMode, setBroadcastMode] = useState<'introvert' | 'extrovert'>('introvert');
 
     // Toast state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
@@ -242,6 +243,9 @@ export default function AdminPage() {
             const data = await response.json();
             setSongs(data.songs);
             setCurrentSongId(data.currentSongId);
+            if (data.playbackState?.broadcastMode) {
+                setBroadcastMode(data.playbackState.broadcastMode);
+            }
         } catch (error) {
             console.error('Error fetching songs:', error);
         }
@@ -630,6 +634,25 @@ export default function AdminPage() {
         }
     };
 
+    // Sync player state to server
+    useEffect(() => {
+        const syncInterval = setInterval(() => {
+            if (playerRef.current && playerRef.current.getCurrentTime && currentSongId) {
+                const currentTime = playerRef.current.getCurrentTime();
+                const state = playerRef.current.getPlayerState();
+                const isPlaying = state === 1; // 1 = playing
+                
+                fetch('/api/playback/sync', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentTime, isPlaying, broadcastMode })
+                }).catch(err => console.error('Sync error:', err));
+            }
+        }, 1000); // Sync every 1s
+        
+        return () => clearInterval(syncInterval);
+    }, [currentSongId, broadcastMode]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
@@ -684,12 +707,24 @@ export default function AdminPage() {
                                     <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-4 lg:p-6">
                                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                                             <h2 className="text-xl font-bold gradient-text">Đang Phát</h2>
-                                            <button
-                                                onClick={handleNextSong}
-                                                className="w-full sm:w-auto cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
-                                            >
-                                                Bài Tiếp ⏭️
-                                            </button>
+                                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                <button
+                                                    onClick={() => {
+                                                        const newMode = broadcastMode === 'introvert' ? 'extrovert' : 'introvert';
+                                                        setBroadcastMode(newMode);
+                                                        showToast(newMode === 'introvert' ? 'Đã bật chế độ cho user nghe (Hướng Nội)' : 'Đã bật chế độ chỉ admin nghe (Hướng Ngoại)', 'success');
+                                                    }}
+                                                    className={`px-4 py-2 rounded-lg font-medium transition-all text-sm whitespace-nowrap ${broadcastMode === 'introvert' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}
+                                                >
+                                                    {broadcastMode === 'introvert' ? '🔊 Hướng Nội' : '🔇 Hướng Ngoại'}
+                                                </button>
+                                                <button
+                                                    onClick={handleNextSong}
+                                                    className="w-full sm:w-auto cursor-pointer px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:shadow-lg transition-all active:scale-95"
+                                                >
+                                                    Bài Tiếp ⏭️
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="aspect-video rounded-xl overflow-hidden mb-4">
                                             <div

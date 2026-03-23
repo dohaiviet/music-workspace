@@ -20,6 +20,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             songs: queue,
             currentSongId: playback?.currentSongId || null,
+            playbackState: playback ? {
+                currentTime: playback.currentTime,
+                isPlaying: playback.isPlaying,
+                broadcastMode: playback.broadcastMode || 'introvert',
+                updatedAt: playback.updatedAt
+            } : null,
         });
     } catch (error) {
         console.error('Error fetching songs:', error);

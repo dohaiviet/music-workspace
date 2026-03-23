@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Pusher from 'pusher-js';
 import SongCard from '@/components/SongCard';
+
+declare global {
+    interface Window {
+        YT: any;
+        onYouTubeIframeAPIReady: () => void;
+    }
+}
+
 import UserAvatar from '@/components/UserAvatar';
 import Toast from '@/components/Toast';
 import Modal from '@/components/Modal';
@@ -46,6 +55,8 @@ export default function HomePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
 
+  const playerRef = useRef<any>(null);
+
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
@@ -88,6 +99,120 @@ export default function HomePage() {
       fetchHistory(historyPage);
     }
   }, [historyPage, user, fetchHistory]);
+
+  // Pusher real-time sync
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_PUSHER_APP_KEY || !process.env.NEXT_PUBLIC_PUSHER_CLUSTER) return;
+
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_APP_KEY, {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    });
+
+    const channel = pusher.subscribe('playback');
+    channel.bind('sync', (data: any) => {
+        if (!playerRef.current || !playerRef.current.seekTo) return;
+
+        const { currentTime, isPlaying, broadcastMode } = data;
+        
+        if (broadcastMode === 'extrovert') {
+            const state = playerRef.current.getPlayerState();
+            if (state === 1 || state === 3) {
+                playerRef.current.pauseVideo();
+            }
+            return;
+        }
+
+        const localTime = playerRef.current.getCurrentTime();
+        
+        // If difference is more than 1 second, sync it
+        if (Math.abs(localTime - currentTime) > 1.0) {
+            playerRef.current.seekTo(currentTime, true);
+        }
+
+        const state = playerRef.current.getPlayerState();
+        if (isPlaying && state !== 1 && state !== 3) { // not playing/buffering
+            playerRef.current.playVideo();
+        } else if (!isPlaying && state === 1) { // playing
+            playerRef.current.pauseVideo();
+        }
+    });
+
+    return () => {
+        pusher.unsubscribe('playback');
+        pusher.disconnect();
+    };
+  }, []);
+
+  // Initialize YT API
+  useEffect(() => {
+      if (!window.YT) {
+          const tag = document.createElement('script');
+          tag.src = 'https://www.youtube.com/iframe_api';
+          const firstScriptTag = document.getElementsByTagName('script')[0];
+          if(firstScriptTag?.parentNode) {
+              firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+          } else {
+               document.head.appendChild(tag);
+          }
+          window.onYouTubeIframeAPIReady = () => {};
+      }
+      
+      return () => {
+          if (playerRef.current) {
+              playerRef.current.destroy();
+              playerRef.current = null;
+          }
+      };
+  }, []);
+
+  // Load video when currentSong changes
+  useEffect(() => {
+      if (!currentSongId) return;
+
+      const currentSongDetail = songs.find(s => s._id === currentSongId);
+      if(!currentSongDetail) return;
+
+      const loadVideo = () => {
+          if (playerRef.current && playerRef.current.loadVideoById) {
+              const currentVideoUrl = playerRef.current.getVideoUrl();
+              if (!currentVideoUrl || !currentVideoUrl.includes(currentSongDetail.videoId)) {
+                  playerRef.current.loadVideoById(currentSongDetail.videoId);
+              }
+          } else if (window.YT && window.YT.Player) {
+              const playerElement = document.getElementById('youtube-player-user');
+              if (playerElement) {
+                  playerRef.current = new window.YT.Player('youtube-player-user', {
+                      videoId: currentSongDetail.videoId,
+                      playerVars: {
+                          autoplay: 1,
+                          controls: 0,
+                          disablekb: 1,
+                          fs: 0,
+                          rel: 0,
+                          modestbranding: 1
+                      },
+                      events: {
+                          onReady: (e: any) => {
+                             e.target.playVideo();
+                          }
+                      }
+                  });
+              }
+          }
+      };
+
+      if (window.YT && window.YT.Player) {
+          loadVideo();
+      } else {
+          const checkInterval = setInterval(() => {
+              if (window.YT && window.YT.Player) {
+                  loadVideo();
+                  clearInterval(checkInterval);
+              }
+          }, 100);
+          return () => clearInterval(checkInterval);
+      }
+  }, [currentSongId, songs]);
 
   // ... (fetchUser and fetchSongs implementation remains potentially same, but I need to be careful not to delete them if they are in the chunk)
   // Wait, I need to match the chunk correctly.
@@ -377,11 +502,16 @@ export default function HomePage() {
       <main className="max-w-4xl mx-auto px-4 py-4 lg:py-8">
         {/* Currently Playing */}
         {currentSong ? (
-          <div className="mb-8 cursor-pointer">
+          <div className="mb-8 cursor-pointer relative">
             <h2 className="text-2xl font-bold gradient-text mb-4 flex items-center gap-2">
               🎵 Đang Phát
             </h2>
             <SongCard song={currentSong} isCurrentlyPlaying={true} />
+            
+            {/* Hidden Player */}
+            <div className="absolute top-0 left-0 w-0 h-0 opacity-0 overflow-hidden pointer-events-none">
+               <div id="youtube-player-user" />
+            </div>
           </div>
         ) : (
           <div className="mb-8">
